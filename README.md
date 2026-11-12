@@ -3,6 +3,21 @@
 Speak your grocery list. PayGrow finds the products, reads them back to you, and
 books the card you pick. PayPal takes the payment.
 
+## Look at it first
+
+Open this in a browser:
+
+**https://paygrow.onrender.com/**
+
+That link serves the same flow as the Android app, in a web page. Type a list
+like "do litre doodh aur ek bread", tap a card, and the PayPal sandbox page opens
+for approval. No install, no keys, nothing to set up.
+
+The first request can take up to a minute, because the free hosting tier sleeps
+when nobody is using it. Give it that minute and it wakes up.
+
+If you would rather build it yourself, everything is below.
+
 Built for the PayPal AI Hackathon 2026.
 
 ## The two halves
