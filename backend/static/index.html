@@ -270,6 +270,17 @@
   .sess .ord { display: flex; gap: 6px; font-size: 10.5px; color: var(--grey); margin-top: 4px; }
   .empty { color: var(--grey); font-size: 12px; padding: 8px 4px; }
   .hidden { display: none !important; }
+
+  /* the send arrow turns into a spinner until the message is on its way */
+  button.busy { background: var(--orange) !important; border-color: var(--orange) !important; }
+  .spin {
+    display: block; width: 15px; height: 15px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    border-top-color: #fff;
+    animation: rot 0.7s linear infinite;
+  }
+  @keyframes rot { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
@@ -336,6 +347,19 @@
     (card.currency === "INR" ? "₹" : "$") + Number(card.price || 0).toFixed(2);
 
   const headers = () => ({ "X-Device-Id": DEVICE });
+
+  const SVG_ARROW =
+    '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+    'stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+    '<path d="M12 19V5"/><path d="M6 11l6-6 6 6"/></svg>';
+
+  /// Swap the arrow for a spinner while the message is being sent.
+  function setBusy(button, busy) {
+    if (!button) return;
+    button.classList.toggle("busy", busy);
+    button.disabled = busy;
+    button.innerHTML = busy ? '<span class="spin"></span>' : SVG_ARROW;
+  }
 
   async function api(path, options = {}) {
     const res = await fetch(path, options);
@@ -717,11 +741,17 @@
         sendText(text);
       }
     });
-    send.onclick = () => {
+    send.onclick = async () => {
       const text = input.value;
+      if (!text.trim() || send.disabled) return;
+      setBusy(send, true);
       input.value = "";
       input.dispatchEvent(new Event("input"));
-      sendText(text);
+      try {
+        await sendText(text);
+      } finally {
+        setBusy(send, false);
+      }
     };
     $("micBtn").onclick = startInlineRecording;
     $("voiceBtn").onclick = startVoiceWindow;
@@ -825,6 +855,9 @@
   }
 
   async function finishRecording() {
+    const button = $("sendRec");
+    if (button && button.disabled) return;
+    setBusy(button, true);
     clearInterval(clockTimer);
     clearTimeout(chunkTimer);
     await flushChunk(false);
