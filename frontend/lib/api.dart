@@ -26,7 +26,14 @@ class PayGrowApi {
       : baseUrl = baseUrl ??
             const String.fromEnvironment(
               'API_BASE',
-              defaultValue: 'https://paygrow.onrender.com',
+              // Your backend goes here. Nothing is baked in on purpose: a fork
+              // should never end up calling somebody else's deployment, and
+              // their PayPal keys with it.
+              //
+              // Either pass it at build time:
+              //   flutter run --dart-define=API_BASE=https://your-backend.example.com
+              // or change the default below and keep it to yourself.
+              defaultValue: 'https://your-backend.example.com',
             );
 
   final String baseUrl;
