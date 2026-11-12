@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PayGrow - speak, we shop</title>
+<style>
+  :root { --ink:#111827; --muted:#6b7280; --line:#e5e7eb; --accent:#4f46e5; --green:#059669; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif; color:var(--ink); background:#f9fafb; }
+  header { padding:18px 24px; background:#fff; border-bottom:1px solid var(--line); }
+  h1 { margin:0; font-size:20px; }
+  header p { margin:4px 0 0; color:var(--muted); font-size:13px; }
+  main { max-width:1120px; margin:0 auto; padding:20px; display:grid; gap:20px; grid-template-columns: 1fr 320px; }
+  @media (max-width: 880px) { main { grid-template-columns: 1fr; } }
+  .card { background:#fff; border:1px solid var(--line); border-radius:14px; padding:16px; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  input[type=text] { flex:1; min-width:200px; padding:12px 14px; border:1px solid var(--line); border-radius:10px; font-size:15px; }
+  button { cursor:pointer; border:none; border-radius:10px; padding:11px 16px; font-size:14px; font-weight:600; background:var(--accent); color:#fff; }
+  button.ghost { background:#fff; color:var(--ink); border:1px solid var(--line); }
+  button.mic { background:#111827; }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  .status { margin-top:10px; font-size:13px; color:var(--muted); min-height:18px; }
+  .heard { margin-top:12px; font-size:13px; color:var(--ink); background:#eef2ff; border:1px solid #c7d2fe; padding:10px 12px; border-radius:10px; }
+  .speech { margin-top:12px; padding:14px; border:1px solid var(--line); border-radius:12px; background:#fcfcfd; font-size:15px; line-height:1.6; min-height:48px; }
+  .speech .cursor { display:inline-block; width:8px; background:var(--accent); animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity:0 } }
+  .grid { display:grid; gap:12px; grid-template-columns:repeat(auto-fill, minmax(160px, 1fr)); margin-top:14px; }
+  .prod { border:1px solid var(--line); border-radius:12px; overflow:hidden; display:flex; flex-direction:column; position:relative; }
+  .prod img { width:100%; aspect-ratio:1/1; object-fit:cover; background:#f3f4f6; }
+  .prod .no { position:absolute; top:8px; left:8px; background:var(--accent); color:#fff; font-weight:700; font-size:12px; width:24px; height:24px; border-radius:999px; display:grid; place-items:center; }
+  .prod .body { padding:8px 10px; display:flex; flex-direction:column; gap:6px; flex:1; }
+  .prod .t { font-size:12px; line-height:1.35; min-height:32px; }
+  .prod .p { font-weight:700; font-size:13px; }
+  .prod .tag { font-size:10px; color:var(--muted); }
+  .prod .btns { display:flex; gap:6px; margin-top:auto; }
+  .prod button { padding:7px 8px; font-size:11px; flex:1; }
+  .cart-line { display:flex; justify-content:space-between; gap:8px; font-size:13px; padding:6px 0; border-bottom:1px dashed var(--line); }
+  .total { display:flex; justify-content:space-between; font-weight:700; margin-top:12px; }
+  .ok { background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46; padding:12px; border-radius:10px; margin-top:12px; font-size:13px; }
+  .err { background:#fef2f2; border:1px solid #fecaca; color:#991b1b; padding:12px; border-radius:10px; margin-top:12px; font-size:13px; }
+  .badge { display:inline-block; font-size:11px; padding:2px 8px; border-radius:999px; background:#eef2ff; color:#3730a3; margin-left:8px; }
+  h3 { margin:0 0 8px; font-size:15px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>PayGrow <span class="badge" id="mode">checking backend...</span></h1>
+  <p>Speak your list. PayGrow finds the products, reads them out, and books the one you pick.</p>
+</header>
+
+<main>
+  <section>
+    <div class="card">
+      <div class="row">
+        <button id="mic" class="mic">Speak</button>
+        <input type="text" id="q" placeholder="or type: mujhe 2 litre doodh aur ek bread chahiye" value="mujhe 2 litre doodh aur ek bread chahiye" />
+        <button id="ask">Ask PayGrow</button>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <label style="font-size:13px;color:var(--muted)">Language</label>
+        <select id="lang" class="ghost" style="border-radius:10px;padding:9px;border:1px solid var(--line);background:#fff">
+          <option value="auto" selected>Auto detect</option>
+          <option value="hi-IN">हिन्दी</option>
+          <option value="en-IN">English (India)</option>
+          <option value="ta-IN">தமிழ்</option>
+          <option value="te-IN">తెలుగు</option>
+          <option value="bn-IN">বাংলা</option>
+          <option value="mr-IN">मराठी</option>
+          <option value="gu-IN">ગુજરાતી</option>
+          <option value="kn-IN">ಕನ್ನಡ</option>
+          <option value="ml-IN">മലയാളം</option>
+          <option value="pa-IN">ਪੰਜਾਬੀ</option>
+          <option value="od-IN">ଓଡ଼ିଆ</option>
+        </select>
+        <button id="replay" class="ghost" style="display:none">Say it again</button>
+      </div>
+      <div class="status" id="status">Type or tap Speak, then PayGrow does the rest.</div>
+      <div id="heard"></div>
+      <div class="speech" id="speech"></div>
+      <div id="cards" class="grid"></div>
+    </div>
+  </section>
+
+  <aside>
+    <div class="card">
+      <h3>Cart</h3>
+      <div id="cart"></div>
+      <div class="total"><span>Total</span><span id="total">$0.00</span></div>
+      <button id="pay" style="width:100%;margin-top:12px" disabled>Pay with PayPal</button>
+      <button id="capture" class="ghost" style="width:100%;margin-top:8px;display:none">I approved - capture payment</button>
+      <div id="checkout"></div>
+    </div>
+  </aside>
+</main>
+
+<script>
+const API = window.location.origin;
+const $ = (id) => document.getElementById(id);
+const cart = [];
+let currency = "USD";
+let pendingOrder = null;
+let lastResult = null;
+let currentAudio = null;
+
+// The server keeps the last cards per session, so "book card 4" still works
+// after a reload or with a stale cached page.
+const SESSION = (() => {
+  try {
+    let id = localStorage.getItem("paygrow_session");
+    if (!id) {
+      id = (crypto.randomUUID ? crypto.randomUUID() : "s" + Date.now() + Math.random().toString(16).slice(2));
+      localStorage.setItem("paygrow_session", id);
+    }
+    return id;
+  } catch (e) {
+    return "default-session";
+  }
+})();
+
+const money = (v) => (currency === "INR" ? "₹" : "$") + Number(v).toFixed(2);
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const PLACEHOLDER = "https://placehold.co/400x400/f4f4f5/52525b?text=no+image";
+
+async function boot() {
+  try {
+    const h = await (await fetch(API + "/health")).json();
+    currency = h.currency || "USD";
+    $("mode").textContent = `spoonacular: ${h.spoonacular} · paypal: ${h.paypal} · sarvam: ${h.sarvam} · groq: ${h.groq}`;
+  } catch (e) {
+    $("mode").textContent = "backend unreachable";
+  }
+  renderCart();
+}
+boot();
+
+/* ------------------------------------------------------------------ voice */
+let recorder = null;
+let recordedChunks = [];
+let recordStream = null;
+
+// Android Chrome does not support every container, so pick one it does.
+function pickMimeType() {
+  if (!window.MediaRecorder) return null;
+  const options = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg"];
+  for (const type of options) {
+    try {
+      if (MediaRecorder.isTypeSupported(type)) return type;
+    } catch (e) { /* keep trying */ }
+  }
+  return "";  // let the browser choose
+}
+
+function extensionFor(type) {
+  if (!type) return "webm";
+  if (type.includes("mp4")) return "m4a";
+  if (type.includes("ogg")) return "ogg";
+  return "webm";
+}
+
+// Last-resort voice input when the browser cannot record audio at all.
+function listenWithBrowserSpeech() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    $("status").textContent = "This browser cannot record or recognise speech - please type the request.";
+    return;
+  }
+  const rec = new SpeechRecognition();
+  rec.lang = $("lang").value === "auto" ? "hi-IN" : $("lang").value;
+  rec.interimResults = false;
+  rec.onresult = (event) => {
+    const heard = event.results[0][0].transcript;
+    $("q").value = heard;
+    $("status").textContent = "Heard by the browser (no Sarvam): " + heard;
+    askWithText(heard);
+  };
+  rec.onerror = (event) => {
+    $("status").textContent = "Browser speech failed (" + event.error + ") - please type the request.";
+  };
+  $("status").textContent = "Using the browser's own speech recognition...";
+  try { rec.start(); } catch (e) { $("status").textContent = "Could not start speech recognition - please type."; }
+}
+
+$("mic").onclick = async () => {
+  if (recorder && recorder.state === "recording") {
+    $("status").textContent = "Sending to Sarvam...";
+    recorder.stop();
+    return;
+  }
+
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) {
+    listenWithBrowserSpeech();
+    return;
+  }
+
+  $("status").textContent = "Asking for microphone permission...";
+  try {
+    recordStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (err) {
+    const name = err && err.name ? err.name : "error";
+    $("status").textContent =
+      name === "NotAllowedError"
+        ? "Microphone permission was denied. Allow it in the browser settings, or type the request."
+        : "Microphone unavailable (" + name + "). Falling back to browser speech.";
+    listenWithBrowserSpeech();
+    return;
+  }
+
+  const mime = pickMimeType();
+  recordedChunks = [];
+  try {
+    recorder = mime ? new MediaRecorder(recordStream, { mimeType: mime }) : new MediaRecorder(recordStream);
+  } catch (err) {
+    $("status").textContent = "This browser cannot record audio (" + (err.name || "error") + "). Falling back to browser speech.";
+    recordStream.getTracks().forEach((track) => track.stop());
+    listenWithBrowserSpeech();
+    return;
+  }
+
+  recorder.ondataavailable = (e) => { if (e.data.size) recordedChunks.push(e.data); };
+  recorder.onstop = async () => {
+    recordStream.getTracks().forEach((track) => track.stop());
+    $("mic").textContent = "Speak";
+    const type = recorder.mimeType || mime || "audio/webm";
+    const blob = new Blob(recordedChunks, { type });
+    if (blob.size < 1000) {
+      $("status").textContent = "That recording was too short (" + blob.size + " bytes) - hold the button a moment longer.";
+      return;
+    }
+    $("status").textContent = "Recorded " + Math.round(blob.size / 1024) + " KB (" + type + "), sending to Sarvam...";
+    await sendVoice(blob);
+  };
+
+  recorder.start();
+  $("mic").textContent = "Stop and send";
+  $("status").textContent = "Recording... tap again when you finish speaking.";
+};
+
+async function sendVoice(blob) {
+  $("status").textContent = "Sarvam is transcribing...";
+  $("speech").textContent = "";
+  $("cards").innerHTML = "";
+  const form = new FormData();
+  form.append("file", blob, "voice." + extensionFor(blob.type));
+  form.append("language", $("lang").value);
+  form.append("session_id", SESSION);
+  if (lastResult && lastResult.cards) form.append("cards", JSON.stringify(lastResult.cards));
+  try {
+    const r = await fetch(API + "/api/agent/voice", { method: "POST", body: form });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || "voice request failed");
+    handleAgent(data);
+  } catch (e) {
+    $("status").textContent = "";
+    $("heard").innerHTML = '<div class="err">' + esc(e.message) + "</div>";
+  }
+}
+
+async function askWithText(text) {
+  if (!text) return;
+  $("status").textContent = "Groq is thinking...";
+  $("speech").textContent = "";
+  $("cards").innerHTML = "";
+  try {
+    const r = await fetch(API + "/api/agent/understand", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text,
+        language: $("lang").value,
+        cards: lastResult ? lastResult.cards : null,
+        session_id: SESSION,
+      }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || "request failed");
+    handleAgent(data);
+  } catch (e) {
+    $("status").textContent = "";
+    $("heard").innerHTML = '<div class="err">' + esc(e.message) + "</div>";
+  }
+}
+
+$("ask").onclick = () => askWithText($("q").value.trim());
+
+$("q").addEventListener("keydown", (e) => { if (e.key === "Enter") $("ask").click(); });
+
+/* --------------------------------------------------------------- rendering */
+function handleAgent(data) {
+  lastResult = data;
+  $("q").value = data.transcript;
+  $("status").textContent = `intent: ${data.intent} · language: ${data.language} · search: ${data.search_mode} · llm: ${data.llm_engine}` +
+    (data.llm_note ? ` (${data.llm_note})` : "") +
+    ` · narration: ${data.narration_engine} · ${data.cards.length} card(s)`;
+
+  if (data.order) {
+    pendingOrder = data.order;
+    $("capture").style.display = "block";
+    if (data.order.approve_url) window.open(data.order.approve_url, "_blank", "noopener");
+    $("checkout").innerHTML = approveBox(data.order, "Booked card " + (data.order.card_no || "") + " by voice. If a tab did not open, use this link:");
+  }
+  $("heard").innerHTML = '<div class="heard">You said: <b>' + esc(data.transcript) + "</b></div>";
+  $("cards").innerHTML = data.cards.map((c) => cardHtml(c)).join("");
+  document.querySelectorAll("#cards button[data-act]").forEach((btn) => {
+    const card = data.cards.find((c) => String(c.card_no) === btn.dataset.no);
+    btn.onclick = () => (btn.dataset.act === "add" ? addToCart(card) : bookNow(card));
+  });
+  $("replay").style.display = "inline-block";
+  playChunks(data.audio, $("speech"));
+}
+
+function cardHtml(c) {
+  const img = c.image || PLACEHOLDER;
+  return '<div class="prod">' +
+    '<span class="no">' + c.card_no + "</span>" +
+    '<img src="' + esc(img) + '" alt="" loading="lazy" referrerpolicy="no-referrer" ' +
+    'onerror="this.onerror=null;this.src=\'' + PLACEHOLDER + '\'" />' +
+    '<div class="body">' +
+    '<div class="t">' + esc(c.title) + "</div>" +
+    '<div class="p">' + money(c.price) + " × " + c.quantity + "</div>" +
+    '<div class="tag">' + esc(c.price_source) + " · " + esc(String(c.availability).replace(/_/g, " ")) + "</div>" +
+    '<div class="btns">' +
+    '<button class="ghost" data-act="add" data-no="' + c.card_no + '">Add</button>' +
+    '<button data-act="book" data-no="' + c.card_no + '">Book ' + c.card_no + "</button>" +
+    "</div></div></div>";
+}
+
+/* ------------------------------------------------- audio + typing in sync */
+async function playChunks(chunks, target) {
+  if (!chunks || !chunks.length) { target.textContent = ""; return; }
+  stopAudio();
+  target.innerHTML = "";
+
+  for (const chunk of chunks) {
+    const line = document.createElement("div");
+    target.appendChild(line);
+
+    if (!chunk.audio) {
+      line.textContent = chunk.text;
+      if (chunk.error) $("status").textContent = chunk.error;
+      continue;
+    }
+
+    await new Promise((resolve) => {
+      const audio = new Audio("data:audio/wav;base64," + chunk.audio);
+      currentAudio = audio;
+      const total = chunk.text.length;
+      let revealed = 0;
+
+      const paint = () => {
+        if (audio.duration && isFinite(audio.duration) && audio.duration > 0) {
+          const progress = Math.min(1, audio.currentTime / audio.duration);
+          revealed = Math.floor(progress * total);
+        }
+        line.textContent = chunk.text.slice(0, revealed);
+      };
+
+      audio.ontimeupdate = paint;
+      audio.onended = () => { line.textContent = chunk.text; currentAudio = null; resolve(); };
+      audio.onerror = () => { line.textContent = chunk.text; currentAudio = null; resolve(); };
+      audio.play().catch(() => { line.textContent = chunk.text; currentAudio = null; resolve(); });
+
+      // Fallback ticker: keeps the text moving even if the browser reports no duration.
+      const ticker = setInterval(() => {
+        if (!currentAudio) { clearInterval(ticker); return; }
+        if (!audio.duration || !isFinite(audio.duration)) {
+          revealed = Math.min(total, revealed + 3);
+          line.textContent = chunk.text.slice(0, revealed);
+        }
+      }, 60);
+      audio.addEventListener("ended", () => clearInterval(ticker), { once: true });
+    });
+  }
+}
+
+function stopAudio() {
+  if (currentAudio) { try { currentAudio.pause(); } catch (e) {} currentAudio = null; }
+}
+
+$("replay").onclick = () => { if (lastResult) playChunks(lastResult.audio, $("speech")); };
+
+/* -------------------------------------------------------------------- cart */
+function addToCart(card) {
+  if (!card) return;
+  const existing = cart.find((l) => l.product_id === card.product_id);
+  if (existing) existing.quantity += card.quantity;
+  else cart.push({ product_id: card.product_id, title: card.title, image: card.image, unit_price: card.price, quantity: card.quantity });
+  renderCart();
+  $("status").textContent = "Added card " + card.card_no + " to the cart.";
+}
+
+function renderCart() {
+  if (!cart.length) $("cart").innerHTML = '<div class="status">Cart is empty.</div>';
+  else $("cart").innerHTML = cart.map((l, i) =>
+    '<div class="cart-line"><span>' + esc(l.title) + " × " + l.quantity + "</span><span>" + money(l.unit_price * l.quantity) +
+    ' <button class="ghost" style="padding:2px 8px;font-size:11px" onclick="removeLine(' + i + ')">×</button></span></div>').join("");
+  const total = cart.reduce((s, l) => s + l.unit_price * l.quantity, 0);
+  $("total").textContent = money(total);
+  $("pay").disabled = cart.length === 0;
+}
+function removeLine(i) { cart.splice(i, 1); renderCart(); }
+
+/* ----------------------------------------------------------------- paypal */
+function approveBox(order, note) {
+  const link = order.approve_url
+    ? '<a href="' + esc(order.approve_url) + '" target="_blank" rel="noopener" ' +
+      'style="display:inline-block;margin-top:8px;padding:10px 14px;background:#0070ba;color:#fff;' +
+      'border-radius:10px;text-decoration:none;font-weight:600;font-size:13px">Open PayPal and approve</a>'
+    : "";
+  return '<div class="ok">' + (note || "") +
+    '<br>Order <b>' + esc(order.order_id) + "</b> · " + esc(order.currency || currency) + " " +
+    Number(order.amount || 0).toFixed(2) +
+    '<br><span style="font-size:12px">In PayPal log in with the <b>buyer</b> account (never the seller), ' +
+    "press <b>Complete Purchase</b>, then come back and press capture.</span>" +
+    link + "</div>";
+}
+
+async function bookNow(card) {
+  if (!card) return;
+  const line = { product_id: card.product_id, title: card.title, image: card.image, unit_price: card.price, quantity: card.quantity };
+  await createOrder([line]);
+}
+
+async function payCart() { await createOrder(cart); }
+
+async function createOrder(lines) {
+  if (!lines.length) return;
+  $("checkout").innerHTML = "";
+  $("pay").disabled = true;
+  try {
+    const r = await fetch(API + "/api/checkout/paypal/order", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lines }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || "order failed");
+    pendingOrder = data;
+    if (data.approve_url) {
+      window.open(data.approve_url, "_blank", "noopener");
+      $("checkout").innerHTML = approveBox(data, "Order created. If a tab did not open, use this link:");
+    } else {
+      $("checkout").innerHTML = approveBox(data, "Mock order created (no PayPal keys). Press capture.");
+    }
+    $("capture").style.display = "block";
+  } catch (e) {
+    $("checkout").innerHTML = '<div class="err">' + esc(e.message) + "</div>";
+    $("pay").disabled = false;
+  }
+}
+
+$("pay").onclick = payCart;
+$("capture").onclick = async () => {
+  if (!pendingOrder) return;
+  $("capture").disabled = true;
+  try {
+    const r = await fetch(API + "/api/checkout/paypal/capture", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ order_id: pendingOrder.order_id }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || "capture failed");
+    if (data.status !== "COMPLETED") {
+      $("checkout").innerHTML = '<div class="err">Order status is ' + esc(data.status) + ". Approve it in PayPal first, then capture again.</div>" +
+        (pendingOrder ? approveBox(pendingOrder, "Still waiting for approval:") : "");
+    } else {
+      $("checkout").innerHTML = '<div class="ok"><b>Order successful 🎉</b><br>capture id: ' + esc(data.capture_id || "-") +
+        "<br>payer: " + esc(data.payer_email || "-") + "<br>mode: " + esc(data.mode) + "</div>";
+      cart.length = 0;
+      renderCart();
+      $("capture").style.display = "none";
+      pendingOrder = null;
+    }
+  } catch (e) {
+    $("checkout").innerHTML = '<div class="err">' + esc(e.message) + "</div>" +
+      (pendingOrder && pendingOrder.approve_url ? approveBox(pendingOrder, "Approve it first:") : "");
+  } finally {
+    $("capture").disabled = false;
+  }
+};
+</script>
+</body>
+</html>
