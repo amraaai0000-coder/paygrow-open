@@ -87,9 +87,9 @@
     max-width: 82%;
   }
   .msg.bot { align-items: flex-start; padding-right: 24px; }
-  .cards { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 10px; width: 100%; }
+  .cards { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 10px; width: 100%; align-items: flex-start; }
   .card {
-    flex: 0 0 168px;
+    flex: 0 0 172px;
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: 16px;
@@ -109,7 +109,7 @@
     display: grid; place-items: center;
   }
   .card .body { padding: 10px; }
-  .card .name { font-size: 12px; line-height: 1.35; height: 34px; overflow: hidden; }
+  .card .name { font-size: 12px; line-height: 1.35; height: 33px; overflow: hidden; margin-bottom: 4px; }
   .card .price { font-size: 13px; font-weight: 700; margin-top: 6px; }
   .card .meta { font-size: 10px; color: var(--grey); margin-top: 2px; }
   .card button {
@@ -119,6 +119,13 @@
     font-size: 12px; font-weight: 700; cursor: pointer;
   }
   .say { font-size: 13.5px; line-height: 1.5; margin-top: 10px; white-space: pre-wrap; }
+  .draft .bubble { opacity: 0.92; }
+  .draft .caret {
+    display: inline-block; width: 2px; height: 14px;
+    background: var(--orange); margin-left: 2px;
+    vertical-align: -2px; animation: blink 1s steps(2, start) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
   .order {
     margin-top: 10px; padding: 10px 12px;
     background: var(--surface); border: 1px solid var(--line);
@@ -290,6 +297,14 @@
 (() => {
   "use strict";
 
+  const SVG_MIC =
+    '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+    'stroke-width="1.7" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/>' +
+    '<path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>';
+  const SVG_CLOSE =
+    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+    'stroke-width="1.9" stroke-linecap="round"><path d="M6 6l12 12"/><path d="M18 6L6 18"/></svg>';
+
   const $ = (id) => document.getElementById(id);
   const DEVICE = localStorage.getItem("pg_device") ||
     (() => {
@@ -341,7 +356,31 @@
       </div>`;
   }
 
+  /// The words appear in a bubble as the speech is transcribed, before the
+  /// turn is sent. Pressing the arrow turns this same bubble into the message.
+  let draftBubble = null;
+
+  function setDraft(text) {
+    if (!draftBubble) {
+      const w = $("welcome");
+      if (w) w.remove();
+      draftBubble = document.createElement("div");
+      draftBubble.className = "msg user draft";
+      draftBubble.innerHTML = '<div class="bubble"><span data-words></span><span class="caret"></span></div>';
+      $("chat").appendChild(draftBubble);
+    }
+    const words = draftBubble.querySelector("[data-words]");
+    if (words) words.textContent = text;
+    scrollEnd();
+  }
+
+  function clearDraft() {
+    if (draftBubble && draftBubble.parentNode) draftBubble.remove();
+    draftBubble = null;
+  }
+
   function addUser(text) {
+    clearDraft();
     const w = $("welcome");
     if (w) w.remove();
     const el = document.createElement("div");
@@ -658,9 +697,9 @@
     $("footer").innerHTML = `
       <div class="composer" id="composer">
         <input id="input" type="text" placeholder="Type your list…" autocomplete="off" />
-        <button class="icon" id="micBtn" title="Record">🎙</button>
-        <button class="icon voice" id="voiceBtn" title="Voice window">◉</button>
-        <button class="send hidden" id="sendBtn" title="Send">↑</button>
+        <button class="icon" id="micBtn" title="Record"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg></button>
+        <button class="icon voice" id="voiceBtn" title="Voice window"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 12h1.5"/><path d="M9 8v8"/><path d="M13 5v14"/><path d="M17 9v6"/><path d="M21 12h-1.5"/></svg></button>
+        <button class="send hidden" id="sendBtn" title="Send"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M6 11l6-6 6 6"/></svg></button>
       </div>`;
     const input = $("input");
     const send = $("sendBtn");
@@ -700,12 +739,12 @@
   function recordingBar() {
     $("footer").innerHTML = `
       <div class="rec">
-        <button class="round" id="cancelRec" title="Cancel">✕</button>
+        <button class="round" id="cancelRec" title="Cancel"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M6 6l12 12"/><path d="M18 6L6 18"/></svg></button>
         <span class="live"></span>
         <span class="hint" id="recHint">Listening…</span>
         <span class="clock" id="recClock">00:00</span>
         <span class="bars" id="recBars">${"<i></i>".repeat(7)}</span>
-        <button class="round go" id="sendRec" title="Send">↑</button>
+        <button class="round go" id="sendRec" title="Send"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M6 11l6-6 6 6"/></svg></button>
       </div>`;
     [...document.querySelectorAll("#recBars i")].forEach((bar, i) => {
       bar.style.animationDelay = (i * 0.09) + "s";
@@ -759,8 +798,9 @@
             const out = await api("/api/stt", { method: "POST", body: form });
             if (out.transcript) {
               transcript = (transcript + " " + out.transcript).trim();
+              setDraft(transcript);
               const hint = $("recHint");
-              if (hint) hint.textContent = transcript.slice(-60) || "Listening…";
+              if (hint) hint.textContent = "Listening…";
             }
           } catch (_) {}
         }
@@ -780,6 +820,7 @@
     }
     if (stream) stream.getTracks().forEach((t) => t.stop());
     transcript = "";
+    clearDraft();
     renderComposer();
   }
 
@@ -790,6 +831,7 @@
     if (stream) stream.getTracks().forEach((t) => t.stop());
     const text = transcript.trim();
     renderComposer();
+    clearDraft();
     if (!text) {
       addError("Nothing was heard. Try again, a little closer to the mic.");
       return;
@@ -814,8 +856,8 @@
             <div class="label">${esc(state)}</div>
             <div class="sub">${esc(sub)}</div>
           </div>
-          <button class="icon" id="muteBtn" title="Mute">${voiceMuted ? "🔇" : "🎙"}</button>
-          <button class="icon" id="closeVoice" title="Close">✕</button>
+          <button class="icon" id="muteBtn" title="Mute">${SVG_MIC}</button>
+          <button class="icon" id="closeVoice" title="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M6 6l12 12"/><path d="M18 6L6 18"/></svg></button>
         </div>
       </div>`;
     $("closeVoice").onclick = stopVoiceWindow;
